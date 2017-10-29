@@ -10,8 +10,11 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-
-import static org.junit.jupiter.api.Assertions.*;
+import java.time.LocalDateTime;
+import java.time.temporal.TemporalField;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
 class BpmnBuilderTest {
     @Test
@@ -64,10 +67,24 @@ class BpmnBuilderTest {
         // depends on: target ed then source call
         graph.putEdge(d_ed, e_call);
 
-        BpmnModel bpmnModel = new BpmnBuilder(graph).build();
-        new BpmnAutoLayout(bpmnModel).execute();
-        BpmnXMLConverter converter = new BpmnXMLConverter();
-        byte[] xmlBytes = converter.convertToXML(bpmnModel);
-        Files.write(Paths.get("create-workflow.xml"), xmlBytes);
+        List<Long> times = new ArrayList<>();
+        for(int i = 0; i < 100; i++) {
+            long start = System.currentTimeMillis();
+            BpmnModel bpmnModel = new BpmnBuilder(graph).build("test");
+            new BpmnAutoLayout(bpmnModel).execute();
+            BpmnXMLConverter converter = new BpmnXMLConverter();
+            byte[] xmlBytes = converter.convertToXML(bpmnModel);
+            long now = System.currentTimeMillis();
+            long sub = now - start;
+            times.add(sub);
+        }
+        int total = 0;
+        for (Long time : times) {
+            total += time;
+        }
+        System.out.println(total);
+        System.out.println(total/times.size());
+
+//        Files.write(Paths.get("create-workflow.xml"), xmlBytes);
     }
 }

@@ -8,15 +8,18 @@ public abstract class BaseActivity {
         return id;
     }
 
-    public void setId(String id) {
+    public BaseActivity setId(String id) {
         this.id = id;
+
+        return this;
     }
 
     public String getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public BaseActivity setType(String type) {
         this.type = type;
+        return this;
     }
 }
