@@ -5,9 +5,8 @@ import org.activiti.bpmn.model.*;
 import org.activiti.bpmn.model.Process;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -15,7 +14,6 @@ public class BpmnBuilder {
     private final MutableGraph<BaseActivity> graph;
     private final List<BaseActivity> nodes;
     private Process process;
-    private Map<String, FlowElement> flowElementMap;
 
     public BpmnBuilder(MutableGraph<BaseActivity> graph) {
         this.graph = graph;
@@ -26,7 +24,6 @@ public class BpmnBuilder {
         this.analysisBranches();
         this.analysisEndpoint();
 
-        this.flowElementMap = new HashMap<>();
         this.process = new Process();
         this.process.setId(workflowId);
         this.graph.nodes().forEach(node -> {
@@ -131,15 +128,16 @@ public class BpmnBuilder {
 
     @SuppressWarnings("unchecked")
     private <T extends FlowElement> T getOrCreateFlowElement(String id, Class<T> elementClass, Function<T, T> callWhenCreate) {
-        return (T) this.flowElementMap.computeIfAbsent(id, s -> {
-            try {
-                T ele = elementClass.newInstance();
-                ele.setId(id);
-                this.process.addFlowElement(ele);
-                return callWhenCreate.apply(ele);
-            } catch (InstantiationException | IllegalAccessException e) {
-                throw new RuntimeException("failed to create " + elementClass + " instance with id " + id + ", error: " + e.getMessage(), e);
-            }
-        });
+        return (T) Optional.ofNullable(this.process.getFlowElement(id))
+                .orElseGet(() -> {
+                    try {
+                        T ele = elementClass.newInstance();
+                        ele.setId(id);
+                        this.process.addFlowElement(ele);
+                        return callWhenCreate.apply(ele);
+                    } catch (InstantiationException | IllegalAccessException e) {
+                        throw new RuntimeException("failed to create " + elementClass + " instance with id " + id + ", error: " + e.getMessage(), e);
+                    }
+                });
     }
 }
