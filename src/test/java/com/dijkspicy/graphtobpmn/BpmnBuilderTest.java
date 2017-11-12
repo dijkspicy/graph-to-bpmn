@@ -1,5 +1,7 @@
-package com.tttx.demo.gtob;
+package com.dijkspicy.graphtobpmn;
 
+import com.dijkspicy.graphtobpmn.activity.CallOperation;
+import com.dijkspicy.graphtobpmn.activity.SetState;
 import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.MutableGraph;
 import org.activiti.bpmn.BpmnAutoLayout;

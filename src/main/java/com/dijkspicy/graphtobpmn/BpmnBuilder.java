@@ -1,6 +1,11 @@
-package com.tttx.demo.gtob;
+package com.dijkspicy.graphtobpmn;
 
+import com.dijkspicy.graphtobpmn.activity.End;
+import com.dijkspicy.graphtobpmn.activity.Fork;
+import com.dijkspicy.graphtobpmn.activity.Join;
+import com.dijkspicy.graphtobpmn.activity.Start;
 import com.google.common.graph.MutableGraph;
+import org.activiti.bpmn.BpmnAutoLayout;
 import org.activiti.bpmn.model.*;
 import org.activiti.bpmn.model.Process;
 
@@ -20,12 +25,24 @@ public class BpmnBuilder {
         this.nodes = new ArrayList<>(graph.nodes());
     }
 
+    public BpmnModel buildWithDI(String workflowId) {
+        BpmnModel bpmnModel = this.build(workflowId);
+        new BpmnAutoLayout(bpmnModel).execute();
+        return bpmnModel;
+    }
+
     public BpmnModel build(String workflowId) {
+        this.process = new Process();
+        BpmnModel bpmnModel = new BpmnModel();
+        bpmnModel.addProcess(this.process);
+        this.process.setId(workflowId);
+        if (nodes.isEmpty()) {
+            return bpmnModel;
+        }
+
         this.analysisBranches();
         this.analysisEndpoint();
 
-        this.process = new Process();
-        this.process.setId(workflowId);
         this.graph.nodes().forEach(node -> {
             FlowNode serviceTask = this.getOrCreateNode(node);
             this.graph.successors(node).forEach(successor -> {
@@ -34,8 +51,6 @@ public class BpmnBuilder {
             });
         });
 
-        BpmnModel bpmnModel = new BpmnModel();
-        bpmnModel.addProcess(this.process);
         return bpmnModel;
     }
 
@@ -67,7 +82,7 @@ public class BpmnBuilder {
         List<BaseActivity> startNodes = this.nodes.stream().filter(it -> this.graph.predecessors(it).isEmpty()).collect(Collectors.toList());
         List<BaseActivity> endNodes = this.nodes.stream().filter(it -> this.graph.successors(it).isEmpty()).collect(Collectors.toList());
         if (startNodes.isEmpty() || endNodes.isEmpty()) {
-            throw new RuntimeException("invalid workflow graph with cycles");
+            throw new BpmnBuildException("invalid workflow graph with cycles");
         }
 
         BaseActivity start = new Start().setId("start");
@@ -136,7 +151,7 @@ public class BpmnBuilder {
                         this.process.addFlowElement(ele);
                         return callWhenCreate.apply(ele);
                     } catch (InstantiationException | IllegalAccessException e) {
-                        throw new RuntimeException("failed to create " + elementClass + " instance with id " + id + ", error: " + e.getMessage(), e);
+                        throw new BpmnBuildException("failed to create " + elementClass + " instance with id " + id + ", error: " + e.getMessage(), e);
                     }
                 });
     }

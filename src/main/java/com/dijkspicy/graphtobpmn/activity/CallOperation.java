@@ -1,4 +1,6 @@
-package com.tttx.demo.gtob;
+package com.dijkspicy.graphtobpmn.activity;
+
+import com.dijkspicy.graphtobpmn.BaseActivity;
 
 public class CallOperation extends BaseActivity {
 

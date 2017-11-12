@@ -1,4 +1,6 @@
-package com.tttx.demo.gtob;
+package com.dijkspicy.graphtobpmn.activity;
+
+import com.dijkspicy.graphtobpmn.BaseActivity;
 
 public class SetState extends BaseActivity {
     private final String state;

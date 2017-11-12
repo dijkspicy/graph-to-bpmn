@@ -1,4 +1,4 @@
-package com.tttx.demo.gtob;
+package com.dijkspicy.graphtobpmn;
 
 public abstract class BaseActivity {
     private String id;
