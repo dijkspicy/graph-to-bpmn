@@ -1,25 +1,23 @@
 package com.dijkspicy.graphtobpmn;
 
 public abstract class BaseActivity {
-    private String id;
-    private String type;
+    private final String id;
+    private String name;
+
+    protected BaseActivity(String id) {
+        this.id = id;
+        this.name = id;
+    }
 
     public String getId() {
         return id;
     }
 
-    public BaseActivity setId(String id) {
-        this.id = id;
-
-        return this;
+    public String getName() {
+        return name;
     }
 
-    public String getType() {
-        return type;
-    }
-
-    public BaseActivity setType(String type) {
-        this.type = type;
-        return this;
+    public void setName(String name) {
+        this.name = name;
     }
 }

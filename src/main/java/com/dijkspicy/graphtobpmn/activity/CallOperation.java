@@ -1,13 +1,10 @@
 package com.dijkspicy.graphtobpmn.activity;
 
-import com.dijkspicy.graphtobpmn.BaseActivity;
-
-public class CallOperation extends BaseActivity {
-
+public class CallOperation<T> extends ExecutableActivity<T> {
     private final String operation;
 
-    public CallOperation(String obj, String operation) {
-        this.setId(obj + "-" + operation);
+    public CallOperation(String id, T target, String operation) {
+        super(id, target);
         this.operation = operation;
     }
 

@@ -1,28 +1,26 @@
 package com.dijkspicy.graphtobpmn;
 
-import com.dijkspicy.graphtobpmn.activity.End;
-import com.dijkspicy.graphtobpmn.activity.Fork;
-import com.dijkspicy.graphtobpmn.activity.Join;
-import com.dijkspicy.graphtobpmn.activity.Start;
+import com.dijkspicy.graphtobpmn.activity.*;
 import com.google.common.graph.MutableGraph;
 import org.activiti.bpmn.BpmnAutoLayout;
 import org.activiti.bpmn.model.*;
 import org.activiti.bpmn.model.Process;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-public class BpmnBuilder {
+public abstract class BpmnBuilder<T> {
     private final MutableGraph<BaseActivity> graph;
-    private final List<BaseActivity> nodes;
+    private final Collection<BaseActivity> nodes;
     private Process process;
 
     public BpmnBuilder(MutableGraph<BaseActivity> graph) {
         this.graph = graph;
-        this.nodes = new ArrayList<>(graph.nodes());
+        this.nodes = new ArrayList<>(this.graph.nodes());
     }
 
     public BpmnModel buildWithDI(String workflowId) {
@@ -36,7 +34,7 @@ public class BpmnBuilder {
         BpmnModel bpmnModel = new BpmnModel();
         bpmnModel.addProcess(this.process);
         this.process.setId(workflowId);
-        if (nodes.isEmpty()) {
+        if (this.nodes.isEmpty()) {
             return bpmnModel;
         }
 
@@ -54,11 +52,15 @@ public class BpmnBuilder {
         return bpmnModel;
     }
 
+    protected abstract void complete(ServiceTask serviceTask, SetState<T> baseActivity);
+
+    protected abstract void complete(ServiceTask serviceTask, CallOperation<T> baseActivity);
+
     private void analysisBranches() {
         for (BaseActivity node : this.nodes) {
             List<BaseActivity> predecessors = new ArrayList<>(this.graph.predecessors(node));
             if (predecessors.size() > 1) {
-                BaseActivity join = new Join().setId("join-of-" + node.getId());
+                BaseActivity join = new Join("join-of-" + node.getId());
                 for (BaseActivity predecessor : predecessors) {
                     this.graph.removeEdge(predecessor, node);
                     this.graph.putEdge(predecessor, join);
@@ -68,7 +70,7 @@ public class BpmnBuilder {
 
             List<BaseActivity> successors = new ArrayList<>(this.graph.successors(node));
             if (successors.size() > 1) {
-                BaseActivity fork = new Fork().setId("fork-of-" + node.getId());
+                BaseActivity fork = new Fork("fork-of-" + node.getId());
                 for (BaseActivity successor : successors) {
                     this.graph.removeEdge(node, successor);
                     this.graph.putEdge(fork, successor);
@@ -85,20 +87,20 @@ public class BpmnBuilder {
             throw new BpmnBuildException("invalid workflow graph with cycles");
         }
 
-        BaseActivity start = new Start().setId("start");
+        BaseActivity start = new Start("start");
         if (startNodes.size() == 1) {
             this.graph.putEdge(start, startNodes.get(0));
         } else {
-            BaseActivity fork = new Fork().setId("fork");
+            BaseActivity fork = new Fork("fork");
             this.graph.putEdge(start, fork);
             startNodes.forEach(it -> this.graph.putEdge(fork, it));
         }
 
-        BaseActivity end = new End().setId("end");
+        BaseActivity end = new End("end");
         if (endNodes.size() == 1) {
             this.graph.putEdge(endNodes.get(0), end);
         } else {
-            BaseActivity join = new Join().setId("join");
+            BaseActivity join = new Join("join");
             this.graph.putEdge(join, end);
             endNodes.forEach(it -> this.graph.putEdge(it, join));
         }
@@ -121,35 +123,43 @@ public class BpmnBuilder {
         this.getOrCreateFlowElement(flowId, SequenceFlow.class, flow -> {
             this.setSource(source, flow);
             this.setTarget(target, flow);
-            return flow;
-        });
-    }
-
-    private FlowNode getOrCreateNode(BaseActivity baseActivity) {
-        if (baseActivity instanceof Start) {
-            return this.getOrCreateFlowElement(baseActivity.getId(), StartEvent.class, t -> t);
-        }
-        if (baseActivity instanceof End) {
-            return this.getOrCreateFlowElement(baseActivity.getId(), EndEvent.class, t -> t);
-        }
-        if (baseActivity instanceof Fork || baseActivity instanceof Join) {
-            return this.getOrCreateFlowElement(baseActivity.getId(), ParallelGateway.class, t -> t);
-        }
-        return this.getOrCreateFlowElement(baseActivity.getId(), ServiceTask.class, task -> {
-            task.setName(baseActivity.getId());
-            return task;
         });
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends FlowElement> T getOrCreateFlowElement(String id, Class<T> elementClass, Function<T, T> callWhenCreate) {
-        return (T) Optional.ofNullable(this.process.getFlowElement(id))
+    private FlowNode getOrCreateNode(BaseActivity baseActivity) {
+        if (baseActivity instanceof Start) {
+            return this.getOrCreateFlowElement(baseActivity.getId(), StartEvent.class, t -> {
+            });
+        }
+        if (baseActivity instanceof End) {
+            return this.getOrCreateFlowElement(baseActivity.getId(), EndEvent.class, t -> {
+            });
+        }
+        if (baseActivity instanceof Fork || baseActivity instanceof Join) {
+            return this.getOrCreateFlowElement(baseActivity.getId(), ParallelGateway.class, t -> {
+            });
+        }
+        return this.getOrCreateFlowElement(baseActivity.getId(), ServiceTask.class, t -> {
+            t.setName(baseActivity.getName());
+            if (baseActivity instanceof SetState) {
+                this.complete(t, (SetState<T>) baseActivity);
+            } else if (baseActivity instanceof CallOperation) {
+                this.complete(t, (CallOperation<T>) baseActivity);
+            }
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private <F extends FlowElement> F getOrCreateFlowElement(String id, Class<F> elementClass, Consumer<F> callWhenCreate) {
+        return (F) Optional.ofNullable(this.process.getFlowElement(id))
                 .orElseGet(() -> {
                     try {
-                        T ele = elementClass.newInstance();
+                        F ele = elementClass.newInstance();
                         ele.setId(id);
                         this.process.addFlowElement(ele);
-                        return callWhenCreate.apply(ele);
+                        callWhenCreate.accept(ele);
+                        return ele;
                     } catch (InstantiationException | IllegalAccessException e) {
                         throw new BpmnBuildException("failed to create " + elementClass + " instance with id " + id + ", error: " + e.getMessage(), e);
                     }

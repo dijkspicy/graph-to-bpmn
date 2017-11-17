@@ -1,6 +1,7 @@
 package com.dijkspicy.graphtobpmn.activity;
 
-import com.dijkspicy.graphtobpmn.BaseActivity;
-
-public class Start extends BaseActivity {
+public class Start extends FlowControlActivity {
+    public Start(String id) {
+        super(id);
+    }
 }

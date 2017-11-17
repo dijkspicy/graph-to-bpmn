@@ -1,12 +1,10 @@
 package com.dijkspicy.graphtobpmn.activity;
 
-import com.dijkspicy.graphtobpmn.BaseActivity;
-
-public class SetState extends BaseActivity {
+public class SetState<T> extends ExecutableActivity<T> {
     private final String state;
 
-    public SetState(String obj, String state) {
-        this.setId(obj + "-" + state);
+    public SetState(String id, T target, String state) {
+        super(id, target);
         this.state = state;
     }
 
